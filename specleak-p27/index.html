@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Northbridge public example: Python configuration precedence, integer environment variables, cache TTL settings, and reproducible debugging checks.">
+  <link rel="canonical" href="https://zhengyufan-make.github.io/specleak-p27/">
+  <title>Northbridge Python Configuration Reference | Public Example</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #193044; background: #f4f7fa; }
+    body { max-width: 850px; margin: 3rem auto; padding: 0 1.25rem; line-height: 1.7; }
+    main { background: white; padding: 2.2rem; border: 1px solid #d9e2eb; border-radius: 12px; }
+    h1 { line-height: 1.2; font-size: clamp(1.8rem, 5vw, 2.6rem); }
+    h2 { margin-top: 2rem; line-height: 1.35; }
+    .eyebrow { color: #14685e; font-weight: 700; letter-spacing: .08em; font-size: .8rem; text-transform: uppercase; }
+    .note { border-left: 4px solid #14685e; padding: .6rem 1rem; background: #eff8f5; }
+    pre { overflow-x: auto; padding: 1rem; background: #f2f5f8; border-radius: 6px; line-height: 1.5; }
+    code { font-family: ui-monospace, monospace; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; border-bottom: 1px solid #d9e2eb; padding: .6rem; }
+    a { color: #14685e; }
+    footer { margin-top: 1.5rem; color: #536677; font-size: .9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Northbridge public reference</p>
+  <h1>Python configuration precedence and cache TTL</h1>
+  <p>A small, reproducible configuration example for understanding why a Python application may use a different value from the one in its JSON file.</p>
+  <p class="note">Northbridge is a fictional example application, not a real service or institution. All names and values below are public demonstration data. This static reference page contains no scripts, forms, analytics, or automatic redirects.</p>
+  <h2>1. Define the precedence explicitly</h2>
+  <p>In this example, a built-in default is overridden by a JSON configuration value, which is then overridden by an environment variable. This is the example application's chosen rule; Python does not impose a universal precedence rule on every application.</p>
+  <table>
+    <caption>Configuration sources, from lowest to highest priority</caption>
+    <thead><tr><th>Source</th><th>Example</th><th>Priority</th></tr></thead>
+    <tbody>
+      <tr><td>Built-in default</td><td><code>300</code> seconds</td><td>Lowest</td></tr>
+      <tr><td>JSON file</td><td><code>cache_ttl_seconds: 600</code></td><td>Middle</td></tr>
+      <tr><td>Environment</td><td><code>NORTHBRIDGE_CACHE_TTL_SECONDS=120</code></td><td>Highest</td></tr>
+    </tbody>
+  </table>
+  <p>When all three sources are present, the effective cache TTL is <strong>120 seconds</strong>. If the environment variable is absent, the example uses 600 seconds from the file. If the file omits the key too, it uses 300 seconds.</p>
+  <h2>2. Parse and validate the effective value</h2>
+  <p>Environment variables are strings. Convert the selected value to an integer and reject negative TTL values before the application starts serving requests. For this demonstration, zero means no caching. Other applications may define zero differently.</p>
+  <pre><code>import os
+
+def cache_ttl_seconds(config):
+    raw = os.environ.get(
+        "NORTHBRIDGE_CACHE_TTL_SECONDS",
+        config.get("cache_ttl_seconds", 300),
+    )
+    ttl = int(raw)
+    if ttl &lt; 0:
+        raise ValueError("cache TTL must be non-negative")
+    return ttl
+</code></pre>
+  <p>Use integer JSON values and decimal integer text for this small example. An invalid string such as <code>two minutes</code> raises a conversion error. Production configuration loaders should also define how to treat booleans, floating-point values, missing files, and empty strings.</p>
+  <h2>3. Debug a value that appears to be ignored</h2>
+  <ol>
+    <li>Confirm which configuration file the application actually loaded, rather than assuming the current working directory selects it.</li>
+    <li>Check the one relevant environment variable in the process that launches the application. A shell, editor, service manager, and test runner can have different environments.</li>
+    <li>Identify where configuration is read. If the application loads it only at startup, changing a file does not automatically update an already-running process.</li>
+    <li>Check the unit: this example expects seconds, not milliseconds.</li>
+    <li>Record the effective non-sensitive TTL and its source for the test. Avoid printing an entire environment or unrelated configuration values.</li>
+  </ol>
+  <h2>4. Keep tests independent</h2>
+  <p>Test the default, file override, and environment override separately. Restore the environment after each test so one case does not affect the next. Include invalid-text and negative-value cases. These checks distinguish precedence mistakes from conversion and validation mistakes.</p>
+  <p>A useful expected-results matrix is: no override gives 300; a file value of 600 gives 600; the same file plus an environment value of 120 gives 120; a value of -1 raises an error.</p>
+  <h2>About this page</h2>
+  <p>This public reference supports reproducible web-retrieval experiments. Its publication does not demonstrate search-engine indexing, ranking control, or a successful security attack. No private configuration, credentials, or unpublished research logs are included.</p>
+</main>
+<footer>Public example document · Updated 15 November 2026 · <a href="https://github.com/zhengyufan-make/zhengyufan-make.github.io/tree/main/specleak-p27">Page source</a></footer>
+</body>
+</html>
